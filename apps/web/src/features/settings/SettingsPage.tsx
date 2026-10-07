@@ -92,7 +92,7 @@ export function SettingsPage() {
   });
 
   const removeFamily = useMutation({
-    mutationFn: () => api.del(`/families/${fid}`),
+    mutationFn: (confirm: string) => api.del(`/families/${fid}`, { confirmName: confirm }),
     onSuccess: async () => {
       push('家庭空间已删除', 'success');
       await reloadMemberships();
@@ -237,7 +237,7 @@ export function SettingsPage() {
             variant="danger"
             loading={removeFamily.isPending}
             disabled={confirmName !== familyData.family.name}
-            onClick={() => removeFamily.mutate()}
+            onClick={() => removeFamily.mutate(confirmName)}
           >
             删除整个家庭空间
           </Button>

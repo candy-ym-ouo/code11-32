@@ -97,7 +97,15 @@ export async function deleteFamily(actorId: string, familyId: string, confirmNam
   await prisma.$transaction(async (tx) => {
     await tx.family.update({ where: { id: familyId }, data: { deletedAt: new Date() } });
     await audit.record(
-      { familyId, actorId, action: 'family.delete', targetType: 'family', targetId: familyId, ...meta },
+      {
+        familyId,
+        actorId,
+        action: 'family.delete',
+        targetType: 'family',
+        targetId: familyId,
+        diff: { name: family.name, confirmName } as Prisma.InputJsonValue,
+        ...meta,
+      },
       tx,
     );
   });
