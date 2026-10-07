@@ -32,6 +32,7 @@ export function SettingsPage() {
   const [visibility, setVisibility] = useState<Visibility>('family');
   const [allowViewerComment, setAllowViewerComment] = useState(false);
   const [confirmName, setConfirmName] = useState('');
+  const [confirmChecked, setConfirmChecked] = useState(false);
   const [jobId, setJobId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -92,9 +93,15 @@ export function SettingsPage() {
   });
 
   const removeFamily = useMutation({
-    mutationFn: () => api.del(`/families/${fid}`),
+    mutationFn: () =>
+      api.del(`/families/${fid}`, {
+        confirmName: confirmName.trim(),
+        confirm: true,
+      }),
     onSuccess: async () => {
       push('家庭空间已删除', 'success');
+      setConfirmName('');
+      setConfirmChecked(false);
       await reloadMemberships();
       navigate('/');
     },
@@ -227,16 +234,29 @@ export function SettingsPage() {
         <section className="card" style={{ borderColor: 'var(--accent)' }}>
           <h2 style={{ marginBottom: 'var(--space-3)', color: 'var(--accent)' }}>危险操作</h2>
           <p className="muted">
-            删除家庭空间后，所有条目、图片、录音都会不可访问（备份中的副本按备份保留策略自然过期）。请输入家庭名称
-            <strong>{familyData.family.name}</strong> 以确认。
+            删除家庭空间后，所有条目、图片、录音都会不可访问（备份中的副本按备份保留策略自然过期）。此操作会记入审计日志。请输入家庭名称
+            <strong>{familyData.family.name}</strong> 并勾选确认。
           </p>
           <Field label="输入家庭名称确认">
-            <TextInput value={confirmName} onChange={(e) => setConfirmName(e.target.value)} />
+            <TextInput
+              value={confirmName}
+              onChange={(e) => setConfirmName(e.target.value)}
+              autoComplete="off"
+              maxLength={60}
+            />
           </Field>
+          <label className="row" style={{ gap: 8, marginBottom: 'var(--space-4)' }}>
+            <input
+              type="checkbox"
+              checked={confirmChecked}
+              onChange={(e) => setConfirmChecked(e.target.checked)}
+            />
+            <span>我已知晓该操作不可撤销，并确认删除整个家庭空间及其全部成员数据</span>
+          </label>
           <Button
             variant="danger"
             loading={removeFamily.isPending}
-            disabled={confirmName !== familyData.family.name}
+            disabled={confirmName.trim() !== familyData.family.name || !confirmChecked}
             onClick={() => removeFamily.mutate()}
           >
             删除整个家庭空间

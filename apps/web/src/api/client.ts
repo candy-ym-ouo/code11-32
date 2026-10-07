@@ -88,7 +88,8 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
 api.get = <T,>(path: string, signal?: AbortSignal) => api<T>(path, { signal });
 api.post = <T,>(path: string, body?: unknown) => api<T>(path, { method: 'POST', body });
 api.patch = <T,>(path: string, body?: unknown) => api<T>(path, { method: 'PATCH', body });
-api.del = <T,>(path: string) => api<T>(path, { method: 'DELETE' });
+// DELETE 也允许带 body：删除家庭这类破坏性操作需要随请求提交确认信息
+api.del = <T,>(path: string, body?: unknown) => api<T>(path, { method: 'DELETE', body });
 api.upload = <T,>(path: string, formData: FormData) => api<T>(path, { method: 'POST', formData });
 
 /** 调用已经带 /api/v1 前缀的绝对路径（例如服务端返回的媒体 URL）。 */

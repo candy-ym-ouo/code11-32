@@ -53,9 +53,20 @@ export const updateFamilySchema = z.object({
   allowViewerComment: z.boolean().optional(),
 });
 
-export const deleteFamilySchema = z.object({
-  confirmName: trimmed(60),
-});
+/**
+ * 删除家庭是不可逆的破坏性操作：必须同时满足
+ * 1) 逐字输入家庭名称（confirmName）
+ * 2) 显式勾选/声明确认（confirm === true）
+ * 两个条件缺一不可，避免单信号被误触或被脚本绕过。
+ */
+export const deleteFamilySchema = z
+  .object({
+    confirmName: trimmed(60),
+    confirm: z.literal(true, {
+      errorMap: () => ({ message: '必须显式确认删除' }),
+    }),
+  })
+  .strict();
 
 export const createInviteSchema = z.object({
   role: z.enum(FAMILY_ROLES).exclude(['owner']),
@@ -160,6 +171,7 @@ export type CreateItemInput = z.infer<typeof createItemSchema>;
 export type UpdateItemInput = z.infer<typeof updateItemSchema>;
 export type ListItemsQuery = z.infer<typeof listItemsQuerySchema>;
 export type CreateFamilyInput = z.infer<typeof createFamilySchema>;
+export type DeleteFamilyInput = z.infer<typeof deleteFamilySchema>;
 export type CreateInviteInput = z.infer<typeof createInviteSchema>;
 export type PersonInput = z.infer<typeof personSchema>;
 export type CreateShareLinkInput = z.infer<typeof createShareLinkSchema>;

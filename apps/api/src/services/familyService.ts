@@ -91,13 +91,59 @@ export async function updateFamily(
   });
 }
 
-export async function deleteFamily(actorId: string, familyId: string, confirmName: string, meta: ActorMeta) {
+/**
+ * 删除家庭（软删除）。破坏性操作必须同时通过两道确认：
+ * 1) 逐字输入家庭名称（confirmName）
+ * 2) 显式声明确认（confirm === true）
+ * 审计记录在同一事务内写入，携带确认结果与影响快照（成员/条目/人物/媒体数量），
+ * 即便家庭随后被清理，AuditLog（onDelete: SetNull）也能保留追溯依据。
+ */
+export async function deleteFamily(
+  actorId: string,
+  familyId: string,
+  input: { confirmName: string; confirm: boolean },
+  meta: ActorMeta,
+) {
   const family = await getFamilyDetail(familyId);
-  if (family.name !== confirmName) throw badRequest('家庭名不匹配，删除已取消');
+  if (input.confirm !== true) throw badRequest('必须显式确认删除');
+  if (family.name !== input.confirmName) throw badRequest('家庭名不匹配，删除已取消');
+
+  // 删除前留一份影响快照，供审计追溯「这个家庭被删时里面有什么」
+  const [memberCount, itemCount, personCount, mediaCount, inviteCount, shareLinkCount] = await Promise.all([
+    prisma.familyMember.count({ where: { familyId } }),
+    prisma.item.count({ where: { familyId } }),
+    prisma.person.count({ where: { familyId } }),
+    prisma.itemMedia.count({ where: { item: { familyId } } }),
+    prisma.invite.count({ where: { familyId, revokedAt: null } }),
+    prisma.shareLink.count({ where: { familyId, revokedAt: null } }),
+  ]);
+
+  const deletedAt = new Date();
   await prisma.$transaction(async (tx) => {
-    await tx.family.update({ where: { id: familyId }, data: { deletedAt: new Date() } });
+    await tx.family.update({ where: { id: familyId }, data: { deletedAt } });
     await audit.record(
-      { familyId, actorId, action: 'family.delete', targetType: 'family', targetId: familyId, ...meta },
+      {
+        familyId,
+        actorId,
+        action: 'family.delete',
+        targetType: 'family',
+        targetId: familyId,
+        diff: {
+          name: family.name,
+          confirmed: true,
+          confirmName: input.confirmName,
+          deletedAt: deletedAt.toISOString(),
+          impact: {
+            members: memberCount,
+            items: itemCount,
+            people: personCount,
+            media: mediaCount,
+            activeInvites: inviteCount,
+            activeShareLinks: shareLinkCount,
+          },
+        } as Prisma.InputJsonValue,
+        ...meta,
+      },
       tx,
     );
   });

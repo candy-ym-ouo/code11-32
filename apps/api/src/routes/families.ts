@@ -82,7 +82,7 @@ familiesRouter.delete(
   asyncHandler(async (req, res) => {
     const user = currentUser(req);
     const ctx = familyCtx(req);
-    await familyService.deleteFamily(user.id, ctx.familyId, req.body.confirmName, clientMeta(req));
+    await familyService.deleteFamily(user.id, ctx.familyId, req.body, clientMeta(req));
     res.status(204).end();
   }),
 );
